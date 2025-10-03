@@ -49,3 +49,7 @@ In Terminal: To run a all testcases
 pytest --html=reports/report.html --self-contained-html
 
 ```
+
+### Notes:
+- Tests use `pytest-order` to control execution order. Install with `pip install pytest-order` if needed.
+- After a run the HTML report will be created at `reports/report.html`.
