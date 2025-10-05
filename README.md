@@ -14,7 +14,7 @@ git clone https://github.com/najifa6053/Testing_Sauce_Demo_pytest-.git
 
 ```bash
 py -m venv venv
-source venv/bin/activate
+source venv/scripts/activate
 ```
 
 ### Step 3: **Install Selenium and WebDriver Manager**
