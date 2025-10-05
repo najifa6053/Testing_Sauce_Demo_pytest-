@@ -15,29 +15,37 @@ from selenium.webdriver.support import expected_conditions as EC
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Short pause helper for easier output inspection
+SHORT_PAUSE = 0.5
+
+def short_pause():
+    time.sleep(SHORT_PAUSE)
+
 
 @pytest.fixture(scope="module")
 def driver():
-	"""Module-scoped fixture to initialize and quit the Chrome WebDriver."""
-	options = webdriver.ChromeOptions()
-	# Run headless by default if CI env var is set, else interactive
-	if os.getenv("CI") == "true":
-		options.add_argument("--headless=new")
-		options.add_argument("--no-sandbox")
-		options.add_argument("--disable-dev-shm-usage")
+    """Module-scoped fixture to initialize and quit the Chrome WebDriver."""
+    options = webdriver.ChromeOptions()
+    # Run headless by default if CI env var is set, else interactive
+    if os.getenv("CI") == "true":
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+    # Always run in incognito to avoid persisted state
+    options.add_argument("--incognito")
 
-	logger.info("Starting Chrome WebDriver")
-	service = Service(ChromeDriverManager().install())
-	drv = webdriver.Chrome(service=service, options=options)
-	drv.maximize_window()
-	yield drv
-	logger.info("Quitting Chrome WebDriver")
-	drv.quit()
+    logger.info("Starting Chrome WebDriver")
+    service = Service(ChromeDriverManager().install())
+    drv = webdriver.Chrome(service=service, options=options)
+    drv.maximize_window()
+    yield drv
+    logger.info("Quitting Chrome WebDriver")
+    drv.quit()
 
 
 @pytest.fixture(scope="module")
 def base_url():
-	return "https://www.saucedemo.com/"
+    return "https://www.saucedemo.com/"
 
 
 def login(driver: WebDriver, base_url: str, username: str = "standard_user", password: str = "secret_sauce"):
@@ -49,6 +57,7 @@ def login(driver: WebDriver, base_url: str, username: str = "standard_user", pas
 	driver.find_element(By.ID, "login-button").click()
 	# Wait for inventory page
 	WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "inventory_container")))
+	short_pause()
 
 
 def add_product_to_cart(driver: WebDriver, product_name: str):
@@ -81,19 +90,19 @@ def go_to_cart_and_checkout(driver: WebDriver):
 	checkout_btn = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.ID, "checkout")))
 	checkout_btn.click()
 	WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "checkout_info_container")))
-
+	short_pause()
 
 def go_to_cart(driver: WebDriver):
 	"""Navigate to the shopping cart page and wait for it to load."""
 	driver.find_element(By.CLASS_NAME, "shopping_cart_link").click()
 	WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CLASS_NAME, "cart_list")))
-
+	short_pause()
 
 def clear_cart(driver: WebDriver):
 	"""Remove any items currently in the cart to ensure test isolation."""
 	# go to inventory page
 	driver.get("https://www.saucedemo.com/inventory.html")
-	time.sleep(0.5)
+	short_pause()
 	# click burger menu -> reset app state if present
 	try:
 		menu = driver.find_element(By.ID, "react-burger-menu-btn")
@@ -110,20 +119,20 @@ def clear_cart(driver: WebDriver):
 				r.click()
 		except Exception:
 			pass
-
+	short_pause()
 
 def fill_checkout_info(driver: WebDriver, first_name: str = "Test", last_name: str = "User", postal: str = "12345"):
 	driver.find_element(By.ID, "first-name").send_keys(first_name)
 	driver.find_element(By.ID, "last-name").send_keys(last_name)
 	driver.find_element(By.ID, "postal-code").send_keys(postal)
 	driver.find_element(By.ID, "continue").click()
-
+	short_pause()
 
 def finish_checkout(driver: WebDriver):
 	WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.ID, "checkout_summary_container")))
 	driver.find_element(By.ID, "finish").click()
 	WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CLASS_NAME, "complete-header")))
-
+	short_pause()
 
 @pytest.mark.order(1)
 def test_order_confirmation(driver, base_url):
@@ -137,23 +146,25 @@ def test_order_confirmation(driver, base_url):
 	finish_checkout(driver)
 	completed = driver.find_element(By.CLASS_NAME, "complete-header").text
 	assert "THANK YOU FOR YOUR ORDER" in completed.upper()
-
+	short_pause()
 
 @pytest.mark.order(2)
 def test_order_cancellation(driver, base_url):
 	"""Order Cancellation: Add an item, go to checkout, then cancel and verify cart still contains item or returned to cart page."""
 	login(driver, base_url)
+	short_pause()
 	clear_cart(driver)
 	product = "Sauce Labs Bike Light"
 	assert add_product_to_cart(driver, product), "Failed to add product to cart"
 	go_to_cart_and_checkout(driver)
+	short_pause()
 	# On checkout info page, cancel should return to cart
 	driver.find_element(By.ID, "cancel").click()
 	# We should be back on cart page with the item present
 	WebDriverWait(driver, 5).until(EC.visibility_of_element_located((By.CLASS_NAME, "cart_list")))
 	cart_items = [e.text for e in driver.find_elements(By.CLASS_NAME, "inventory_item_name")]
 	assert product in cart_items, "Product not present in cart after cancellation"
-
+	short_pause()
 
 @pytest.mark.order(3)
 def test_checkout_details_verification(driver, base_url):
